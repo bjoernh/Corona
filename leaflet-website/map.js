@@ -82,7 +82,7 @@ function init() {
      map.getPane('labels').style.pointerEvents = 'none';
      
      let xhr = new XMLHttpRequest();
-    xhr.open('GET', 'pavel_simple_0_01.geojson');
+    xhr.open('GET', 'risk_2021-03-12.geojson');
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.responseType = 'json';
     xhr.onload = function() {
@@ -137,12 +137,18 @@ function init() {
     info.update = function (props) {
         this._div.innerHTML = (props ? '<h4>' + props.Landkreis + '</h4>' +  
             '7-Tage Inzidenz: ' + Math.round(props['InzidenzFallNeu-7-Tage'])
-            + '<br>Kontaktrisiko: 1/' + Math.round(props.Kontaktrisiko)
+            + '<br>Kontaktrisiko: 1/' + Math.round(props.Kontaktrisiko) +
+            '<br>RwK: ' + props['InzidenzFallNeu-7-Tage-Trend-Spezial'].toFixed(2) +
+            '<br>Neue Fälle: ' + props.AnzahlFallNeu +
+            '<br>Neue Todefälle: ' + props['AnzahlTodesfallNeu-7-Tage'] +
+            '<br>Fallsterblichkeit: ' + props['Fallsterblichkeit-Prozent'].toFixed(2) + '%' +
+            '<br>Verworfene Fälle<br> wegen Verzögerung: ' + props['AnzahlFallNeu-7-Tage-Dropped']
+
             : 'Hover über einen Landkreis');
     };
 
     info.addTo(map);
-    map.attributionControl.setPrefix(''); // Don't show the 'Powered by Leaflet' text. Attribution overload
+    map.attributionControl.setPrefix('Daten vom 12.03.21'); // Don't show the 'Powered by Leaflet' text. Attribution overload
 
 
 }
