@@ -1116,6 +1116,7 @@ h_table = dash_table.DataTable(
     ],
     style_data_conditional = cs_data,
 #    style_header_conditional= width_style_conditional
+    export_format="csv",
 
 )
 
