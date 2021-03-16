@@ -25,7 +25,7 @@ function getColorInzedenz(d) {
   
 function style(feature) {
   return {
-      fillColor: getColorInzedenz(feature.properties['InzidenzFallNeu-7-Tage']),
+      fillColor: getColorInzedenz(feature.properties.InzidenzFallNeu_7TageSumme),
       weight: 1,
       opacity: 1,
       color: 'white',
@@ -82,7 +82,7 @@ function init() {
      map.getPane('labels').style.pointerEvents = 'none';
      
      let xhr = new XMLHttpRequest();
-    xhr.open('GET', 'risk_2021-03-12.geojson');
+    xhr.open('GET', 'risk_2021-03-16.geojson');
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.responseType = 'json';
     xhr.onload = function() {
@@ -136,13 +136,13 @@ function init() {
     // method that we will use to update the control based on feature properties passed
     info.update = function (props) {
         this._div.innerHTML = (props ? '<h4>' + props.Landkreis + '</h4>' +  
-            '7-Tage Inzidenz: ' + Math.round(props['InzidenzFallNeu-7-Tage'])
+            '7-Tage Inzidenz: ' + Math.round(props.InzidenzFallNeu_7TageSumme)
             + '<br>Kontaktrisiko: 1/' + Math.round(props.Kontaktrisiko) +
-            '<br>RwK: ' + props['InzidenzFallNeu-7-Tage-Trend-Spezial'].toFixed(2) +
+            '<br>RwK: ' + props.InzidenzFallNeu_7TageSumme_Trend_Spezial.toFixed(2) +
             '<br>Neue Fälle: ' + props.AnzahlFallNeu +
-            '<br>Neue Todefälle: ' + props['AnzahlTodesfallNeu-7-Tage'] +
-            '<br>Fallsterblichkeit: ' + props['Fallsterblichkeit-Prozent'].toFixed(2) + '%' +
-            '<br>Verworfene Fälle<br> wegen Verzögerung: ' + props['AnzahlFallNeu-7-Tage-Dropped']
+            '<br>Neue Todefälle: ' + props.AnzahlTodesfallNeu_7TageSumme +
+            '<br>Fallsterblichkeit: ' + props.Fallsterblichkeit_Prozent.toFixed(2) + '%' +
+            '<br>Verworfene Fälle<br> wegen Verzögerung: ' + props.AnzahlFallNeu_7TageSumme_Dropped
 
             : 'Hover über einen Landkreis');
     };
