@@ -148,7 +148,7 @@ function init() {
     };
 
     info.addTo(map);
-    map.attributionControl.setPrefix('Daten vom 12.03.21'); // Don't show the 'Powered by Leaflet' text. Attribution overload
+    map.attributionControl.setPrefix('Daten von https://pavelmayer.de/covid/risks/ Stand: 16.03.21'); // Don't show the 'Powered by Leaflet' text. Attribution overload
 
 
 }
