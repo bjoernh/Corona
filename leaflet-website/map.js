@@ -11,6 +11,17 @@ function style(feature) {
   };
 };
 
+function getColorR(d) {
+    return d > 100 ? '#800026' :
+          d > 75  ? '#BD0026' :
+          d > 60  ? '#E31A1C' :
+          d > 50  ? '#FC4E2A' :
+          d > 30   ? '#FD8D3C' :
+          d > 20   ? '#FEB24C' :
+          d > 10   ? '#FED976' :
+                      '#FFEDA0';
+    };
+
 function getColorInzedenz(d) {
   return d > 100 ? '#800026' :
         d > 75  ? '#BD0026' :
@@ -52,6 +63,8 @@ function highlightFeature(e) {
 
 var geojson;
 
+var popup = L.popup();
+
 function resetHighlight(e) {
     geojson.resetStyle(e.target);
     info.update();
@@ -65,7 +78,7 @@ function onEachFeature(feature, layer) {
     layer.on({
         mouseover: highlightFeature,
         mouseout: resetHighlight,
-        click: zoomToFeature
+        click: onMapClick
     });
 }
 
@@ -73,6 +86,13 @@ var map;
 
 var info;
 
+function onMapClick(e) {
+    var layer = e.target;
+    popup
+        .setLatLng(e.latlng)
+        .setContent(e.target.feature.properties.Landkreis)
+        .openOn(map);
+}
 
 function init() {
      map = L.map('map').setView([51.396, 11.283], 6);
@@ -81,8 +101,8 @@ function init() {
      map.getPane('labels').style.zIndex = 650;
      map.getPane('labels').style.pointerEvents = 'none';
      
-     let xhr = new XMLHttpRequest();
-    xhr.open('GET', 'risk_2021-03-16.geojson');
+    let xhr = new XMLHttpRequest();
+    xhr.open('GET', 'risk_2021-03-17.geojson');
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.responseType = 'json';
     xhr.onload = function() {
@@ -133,7 +153,7 @@ function init() {
         return this._div;
     };
 
-    // method that we will use to update the control based on feature properties passed
+    // method to update the control based on feature properties passed
     info.update = function (props) {
         this._div.innerHTML = (props ? '<h4>' + props.Landkreis + '</h4>' +  
             '7-Tage Inzidenz: ' + Math.round(props.InzidenzFallNeu_7TageSumme)
@@ -148,8 +168,7 @@ function init() {
     };
 
     info.addTo(map);
-    map.attributionControl.setPrefix('Daten von https://pavelmayer.de/covid/risks/ Stand: 16.03.21'); // Don't show the 'Powered by Leaflet' text. Attribution overload
-
+    map.attributionControl.setPrefix('Daten von https://pavelmayer.de/covid/risks/ Stand: 17.03.21'); // Don't show the 'Powered by Leaflet' text. Attribution overload
 
 }
 
