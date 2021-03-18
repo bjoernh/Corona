@@ -1,0 +1,7 @@
+rasterio
+pandas
+geopandas
+matplotlib
+geoplot
+pillow
+joblib
