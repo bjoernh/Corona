@@ -134,6 +134,14 @@ def checkLandkreisData(data, row, Census, Flaeche):
         data["Landkreis"][row] = Landkreis
         data["IdLandkreis"][row] = IdLandkreis
 
+    if Landkreis == "LK Saarpfalz-Kreis":
+        print("#Info: Bad record in row:",row)
+        print("#Info: Changing bad '{}' Kreis with Id {} to ‘LK Saar-Pfalz-Kreis‘ id 5334".format(Landkreis, IdLandkreis))
+        Landkreis = "LK Saar-Pfalz-Kreis"
+        data["Landkreis"][row] = Landkreis
+
+    ## TODO: Normalize all Landkreis Names
+
     #print(record)
     #print(record["IdLandkreis"])
     #censusLK = Census[dt.f.IdLandkreis == IdLandkreis,:]
@@ -391,13 +399,18 @@ def main():
                         action="store_true")
     parser.add_argument("--inMemory", help="run faster but with higher memory footprint",
                         action="store_true")
-    parser.add_argument("--checkpoint", help="write checkpoint after amount of minutes elapsed", default = 5)
+    parser.add_argument("--checkpoint",  type=int, help="write checkpoint after amount of minutes elapsed", default = 10)
+    parser.add_argument("--nthreads", type=int, help="number of concurrent threads used by python dataframes, 0 = as many as cores, 1 single-thread, -3 = 3 threads less than cores", default = 0)
 
     args = parser.parse_args()
     print(args)
     print("args.inMemory",args.inMemory)
     print("args.materializeNew",args.materializeNew)
     print("args.noMaterialize",args.noMaterialize)
+
+    if args.nthreads != 0:
+        dt.options.nthreads = args.nthreads
+    print("dt.options.nthreads", dt.options.nthreads)
 
     fullTable = None
     jayPath = args.outputDir+"/all-data.jay"
@@ -453,10 +466,15 @@ def main():
                 print("fullTable rows = {}".format(fullTable.nrows))
                 print("-> File time {:.1f} secs or {:.1f} mins or {:.1f} hours".format(secs, secs/60, secs/60/60))
                 if time.perf_counter() - lastCheckPointTime > float(args.checkpoint) * 60:
-                    checkname = args.outputDir+"/"+"all-data.check.jay"
-                    print("Saving checkpoint: " + checkname)
-                    fullTable.to_jay(checkname)
-                    print("Saving done:" + checkname)
+                    #checkname = args.outputDir+"/"+"all-data.check.jay"
+                    #print("Saving checkpoint: " + checkname)
+                    pmu.saveJayTable(fullTable,"all-data.check.jay",args.outputDir)
+                    #pmu.saveCsvTable(fullTable,"all-data.check.csv",args.outputDir)
+                    fullTable = None
+                    #fullTable = dt.fread(args.outputDir+"/all-data.check.csv")
+                    fullTable = dt.fread(args.outputDir+"/all-data.check.jay")
+                    #fullTable.to_jay(checkname)
+                    #print("Saving done:" + checkname)
                     lastCheckPointTime = time.perf_counter()
 
     if addedData:
