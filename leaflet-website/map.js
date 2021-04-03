@@ -102,7 +102,7 @@ function init() {
      map.getPane('labels').style.pointerEvents = 'none';
      
     let xhr = new XMLHttpRequest();
-    xhr.open('GET', 'risk_2021-03-17.geojson');
+    xhr.open('GET', 'risk.geojson');
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.responseType = 'json';
     xhr.onload = function() {
@@ -168,7 +168,7 @@ function init() {
     };
 
     info.addTo(map);
-    map.attributionControl.setPrefix('Daten von https://pavelmayer.de/covid/risks/ Stand: 17.03.21'); // Don't show the 'Powered by Leaflet' text. Attribution overload
+    map.attributionControl.setPrefix('Daten von https://pavelmayer.de/covid/risks/ Stand: 03.04.21'); // Don't show the 'Powered by Leaflet' text. Attribution overload
 
 }
 
