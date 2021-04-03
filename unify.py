@@ -124,19 +124,19 @@ def checkLandkreisData(data, row, Census, Flaeche):
         # change old Landkreis ID for Göttingen to new Id
         IdLandkreis = 3159
         data["IdLandkreis"][row] = 3159
-        print("#Info: Changed bad Göttingen Landkreis Id from 3152 to 3159")
+        #print("#Info: Changed bad Göttingen Landkreis Id from 3152 to 3159")
     if Landkreis == "LK Aachen" or IdLandkreis == 5354:
         # change bad Landkreis for Aachen to Stadtregion
-        print("#Info: Bad record in row:",row)
-        print("#Info: Changing bad '{}' Kreis with Id {} to ‘StadtRegion Aachen‘ id 5334".format(Landkreis, IdLandkreis))
+        #print("#Info: Bad record in row:",row)
+        #print("#Info: Changing bad '{}' Kreis with Id {} to ‘StadtRegion Aachen‘ id 5334".format(Landkreis, IdLandkreis))
         Landkreis = "StadtRegion Aachen"
         IdLandkreis = 5334
         data["Landkreis"][row] = Landkreis
         data["IdLandkreis"][row] = IdLandkreis
 
     if Landkreis == "LK Saarpfalz-Kreis":
-        print("#Info: Bad record in row:",row)
-        print("#Info: Changing bad '{}' Kreis with Id {} to ‘LK Saar-Pfalz-Kreis‘ id 5334".format(Landkreis, IdLandkreis))
+        #print("#Info: Bad record in row:",row)
+        #print("#Info: Changing bad '{}' Kreis with Id {} to ‘LK Saar-Pfalz-Kreis‘ id 5334".format(Landkreis, IdLandkreis))
         Landkreis = "LK Saar-Pfalz-Kreis"
         data["Landkreis"][row] = Landkreis
 
@@ -341,6 +341,10 @@ def isNewData(dataFilename, daysIncluded):
     ds = cd.datetimeFromDatenstandAny(dss)
     dsdy = cd.dayFromDate(ds)
     pmu.printMemoryUsage("isNewData")
+    if dsdy in [28,29]:
+        print("contains day {} which is not a proper dump, so we ignored it".format(dsdy))
+        return False
+
     isNew = dsdy not in daysIncluded
     if isNew:
         print("contains new day {}".format(dsdy))
@@ -391,38 +395,58 @@ def main():
     parser.add_argument('files', metavar='fileName', type=str, nargs='+',
                         help='.NPGEO COVID19 Germany data as .csv file')
     parser.add_argument('-d', '--output-dir', dest='outputDir', default=".")
-    #parser.add_argument("--flushmemfull", help="flush full table to disk for lower memory footprint",
-    #                    action="store_true")
-    parser.add_argument("--materializeNew", help="materialize new table to disk for lower memory footprint",
+    parser.add_argument('-t', '--temp-dir', dest='tempDir', default=".")
+    parser.add_argument("--flushread", help="flush full table an re-read after checkpoint lower memory footprint",
                         action="store_true")
-    parser.add_argument("--noMaterialize", help="run with higher memory footprint, or much higher memory footprint with --in-memory",
+    parser.add_argument("--partition", help="save data in partionions instead of one file; slower, but you can see progress and maybe need less memory, but ymmv",
                         action="store_true")
-    parser.add_argument("--inMemory", help="run faster but with higher memory footprint",
+    parser.add_argument("--backup", help="create backup files before overwriting",
                         action="store_true")
-    parser.add_argument("--checkpoint",  type=int, help="write checkpoint after amount of minutes elapsed", default = 10)
+    parser.add_argument("--unsafe", help="directly overwrite output files, will corrupt the output file when killed while writing, but uses less disk space (only applies to single .jay file in non-partition mode)",
+                        action="store_true")
+    parser.add_argument("--force", help="build new database anyway", action="store_true")
+    parser.add_argument("--destructivesave", help="release memory gradually while saving and reload after saving (experimental, untested, only applies to partiioned write)",
+                    action="store_true")
+    #parser.add_argument("--incremental", help="only load partial data", action="store_true")
+    parser.add_argument("-v","--verbose", help="make more noise",
+                        action="store_true")
+    parser.add_argument("--partitionsize",  type=int, help="number of records per partition", default = 10000000)
+    parser.add_argument("--memorylimit",  type=int, help="maximum memory limit for a database file")
+    parser.add_argument("--checkpoint",  type=int, help="write checkpoint after amount of minutes elapsed", default = 60)
     parser.add_argument("--nthreads", type=int, help="number of concurrent threads used by python dataframes, 0 = as many as cores, 1 single-thread, -3 = 3 threads less than cores", default = 0)
 
     args = parser.parse_args()
     print(args)
-    print("args.inMemory",args.inMemory)
-    print("args.materializeNew",args.materializeNew)
-    print("args.noMaterialize",args.noMaterialize)
+    # print("args.inMemory",args.inMemory)
+    # print("args.materializeNew",args.materializeNew)
+    # print("args.noMaterialize",args.noMaterialize)
 
     if args.nthreads != 0:
         dt.options.nthreads = args.nthreads
     print("dt.options.nthreads", dt.options.nthreads)
 
     fullTable = None
-    jayPath = args.outputDir+"/all-data.jay"
+    jayFile = "all-data.jay"
+    jayPath = os.path.join(args.outputDir,jayFile)
     print(jayPath)
     pmu.printMemoryUsage("after start")
 
+    partitioned = False
     daysIncluded = []
-    if os.path.isfile(jayPath):
-        print("Loading " + jayPath)
-        fullTable = dt.fread(jayPath)
+    if not args.force:
+        if os.path.isfile(jayPath):
+            print("Loading " + jayPath)
+            fullTable = dt.fread(jayPath)
+        elif len(pmu.getJayTablePartitions(jayPath)) > 0:
+            fullTable = pmu.loadJayTablePartioned(jayPath, tempDir=args.tempDir, memoryLimit=args.memorylimit, verbose=args.verbose)
+            if fullTable == None:
+                print("The file {} is not a valid jay file, please remove it and retry")
+                exit(1)
+            partitioned = True
+
+    if fullTable is not None:
         pmu.printMemoryUsage("after load")
-        daysIncluded = sorted(fullTable[:, [dt.first(dt.f.DatenstandTag)],dt.by(dt.f.DatenstandTag)].to_list()[0])
+        daysIncluded = sorted(fullTable[:, [dt.first(dt.f.DatenstandTag)], dt.by(dt.f.DatenstandTag)].to_list()[0])
         print("Days in full table:")
         print(daysIncluded)
         pmu.printMemoryUsage("after first query")
@@ -448,14 +472,6 @@ def main():
                 else:
                     #print("full fields", fullTable.names)
                     checkColumns(fullTable.names, newTable.names)
-                    pmu.printMemoryUsage("after checkColumns")
-                    if not args.noMaterialize:
-                        fullTable.materialize(to_memory=args.inMemory)
-                        pmu.printMemoryUsage("after materialize fullTable")
-                    if args.materializeNew:
-                        newTable.materialize(to_memory=args.inMemory)
-                        pmu.printMemoryUsage("after materialize newTable")
-
                     pmu.printMemoryUsage("before fulltable rbind")
                     fullTable.rbind(newTable)  # memory gets used here
                     pmu.printMemoryUsage("after rbind")
@@ -466,27 +482,32 @@ def main():
                 print("fullTable rows = {}".format(fullTable.nrows))
                 print("-> File time {:.1f} secs or {:.1f} mins or {:.1f} hours".format(secs, secs/60, secs/60/60))
                 if time.perf_counter() - lastCheckPointTime > float(args.checkpoint) * 60:
-                    #checkname = args.outputDir+"/"+"all-data.check.jay"
-                    #print("Saving checkpoint: " + checkname)
-                    pmu.saveJayTable(fullTable,"all-data.check.jay",args.outputDir)
-                    #pmu.saveCsvTable(fullTable,"all-data.check.csv",args.outputDir)
-                    fullTable = None
-                    #fullTable = dt.fread(args.outputDir+"/all-data.check.csv")
-                    fullTable = dt.fread(args.outputDir+"/all-data.check.jay")
-                    #fullTable.to_jay(checkname)
-                    #print("Saving done:" + checkname)
-                    lastCheckPointTime = time.perf_counter()
+                    print("Saving checkpoint @ {}".format(datetime.now()))
+                    if args.partition:
+                        pmu.saveJayTablePartioned(fullTable, jayFile, args.outputDir, args.partitionsize, True, args.destructivesave)
+                        if args.flushread or args.destructivesave:
+                            print("Re-reading checkpoint @ {}".format(datetime.now()))
+                            fullTable = None
+                            fullTable = pmu.loadJayTablePartioned(jayPath, tempDir=args.tempDir, memoryLimit=args.memorylimit, verbose=args.verbose)
+                    else:
+                        pmu.saveJayTable(fullTable, "all-data.jay", args.outputDir, args.backup, args.unsafe)
 
-    if addedData:
+                    lastCheckPointTime = time.perf_counter()
+                    print("Checkpoint done @ {}".format(datetime.now()))
+
+    if addedData or (args.partition != partitioned):
         pmu.printMemoryUsage("before full save")
-        pmu.saveJayTable(fullTable, "all-data.jay", args.outputDir)
+        if args.partition:
+            pmu.saveJayTablePartioned(fullTable, "all-data.jay", args.outputDir, args.partitionsize, True, args.destructivesave)
+        else:
+            pmu.saveJayTable(fullTable, "all-data.jay", args.outputDir,args.backup, args.unsafe)
         pmu.printMemoryUsage("after full save")
     else:
-        print("No new data added, not saving 'all-data.ja'")
+        print("No new data added, not saving.'")
     #pmu.saveCsvTable(fullTable, "all-data.csv", args.outputDir)
     finish = time.perf_counter()
     secs = finish - start
-    print("--> Wall time {:.1f} secs or {:.1f} mins or {:.1f} hours".format(secs, secs/60, secs/60/60))
+    print("Finished in {:.1f} secs or {:.1f} mins or {:.1f} hours".format(secs, secs/60, secs/60/60))
 
 if __name__ == "__main__":
     # execute only if run as a script

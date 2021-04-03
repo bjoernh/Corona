@@ -138,7 +138,7 @@ def ifcontains(name, stringlist):
 
 def einwohnerColName(colName):
     gender = ifcontains(colName,["_G_W","_G_M"])
-    age = ifcontains(colName,["_AG_A00_A04","_AG_A05_A14","_AG_A15_A34","_AG_A35_A59","_AG_A60_A79","_AG_80Plus"])
+    age = ifcontains(colName,["_AG_A00_A04","_AG_A05_A14","_AG_A15_A34","_AG_A35_A59","_AG_A60_A79","_AG_A80Plus"])
     result = "Einwohner"+gender+age
     return result
 
@@ -146,10 +146,12 @@ def addIncidences(table):
     #table = addIncidenceColumn(table, "AnzahlTodesfallNeu", "Einwohner", "InzidenzTodesfallNeu")
 
     candidatesColumns = [name for name in table.names if ("AnzahlFall" in name or "AnzahlTodesfall" in name)]
-    #print("addIncidences candidates:", candidatesColumns)
+    #   print("addIncidences candidates:", candidatesColumns)
     for c in candidatesColumns:
         newColName = c.replace("Anzahl","Inzidenz")
-        table = addIncidenceColumn(table, c, einwohnerColName(c), newColName)
+        ewc = einwohnerColName(c)
+        #print("ewc:"+ewc)
+        table = addIncidenceColumn(table, c, ewc, newColName)
         if "AnzahlTodesfall" in c:
             newColName = c.replace("AnzahlTodesfall", "Fallsterblichkeit_Prozent")
             caseColName = c.replace("AnzahlTodesfall", "AnzahlFall")
@@ -168,11 +170,11 @@ def addMoreMetrics(table):
     table = enhanceDatenstandTagMax(table)
     table = addDifferenceColumn(table, "DatenstandTag_Max", "DatenstandTag", "DatenstandTag_Diff")
 
-    table = addIncidenceColumn(table, "MeldeTag_AnzahlFallNeu_Gestern_7TageSumme", "Einwohner", "MeldeTag_InzidenzFallNeu_Gestern_7TageSumme")
+    #table = addIncidenceColumn(table, "MeldeTag_AnzahlFallNeu_Gestern_7TageSumme", "Einwohner", "MeldeTag_InzidenzFallNeu_Gestern_7TageSumme")
     table = addDifferenceColumn(table, "AnzahlFallNeu_7TageSumme", "MeldeTag_AnzahlFallNeu_Gestern_7TageSumme", "AnzahlFallNeu_7TageSumme_Dropped")
     table = addRatioColumn(table, "AnzahlFallNeu_7TageSumme_Dropped", "AnzahlFallNeu_7TageSumme", "ProzentFallNeu_7TageSumme_Dropped", factor=100)
 
-    table = addIncidenceColumn(table, "MeldeTag_Vor7Tagen_AnzahlFallNeu_Vor8Tagen_7TageSumme", "Einwohner", "MeldeTag_Vor7Tagen_InzidenzFallNeu_Vor8Tagen_7TageSumme")
+    #table = addIncidenceColumn(table, "MeldeTag_Vor7Tagen_AnzahlFallNeu_Vor8Tagen_7TageSumme", "Einwohner", "MeldeTag_Vor7Tagen_InzidenzFallNeu_Vor8Tagen_7TageSumme")
     table = addRatioColumn(table, "MeldeTag_InzidenzFallNeu_Gestern_7TageSumme", "MeldeTag_Vor7Tagen_InzidenzFallNeu_Vor8Tagen_7TageSumme",
                            "MeldeTag_InzidenzFallNeu_Trend")
     table = add7dRColumn(table, "MeldeTag_InzidenzFallNeu_Trend", "MeldeTag_InzidenzFallNeu_R")
@@ -239,6 +241,7 @@ def enhance(inputFile, destDir="."):
     path = os.path.normpath(inputFile)
     fileName = path.split(os.sep)[-1]
     newFile = destDir + "/"+"enhanced-"+fileName
+
     newTable.to_csv(newFile)
 
 
