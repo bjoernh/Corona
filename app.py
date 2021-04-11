@@ -26,6 +26,7 @@ from dash_table.Format import Format, Scheme, Sign, Symbol
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
+from dash_extensions import Download
 
 import plotly.graph_objects as go
 import plotly.express as px
@@ -277,6 +278,7 @@ class DataKind(Enum):
     cases_7d = 14,
     deaths_7d = 15,
 
+
 axisDescription=dict(
     unknown="Wert",
     new_cases="Neue Fälle pro Tag",
@@ -310,7 +312,7 @@ def classifyColumn(cn):
     Trend = "Trend" in cn
     Summe7Tage = InzidenzFallNeu = "7TageSumme" in cn and not Trend
 
-    R_Value = cn.endswith("_R")
+    R_Value = cn.endswith("_R")or cn.endswith("_R_Spezial")
     CFR_Percent = "Fallsterblichkeit_Prozent" in cn
     
     if CFR_Percent:
@@ -331,6 +333,10 @@ def classifyColumn(cn):
         return DataKind.cum_deaths
     elif AnzahlFall:
         return DataKind.cum_cases
+    elif Summe7Tage and InzidenzTodesfallNeu:
+        return DataKind.deaths_incidence_7d
+    elif Summe7Tage and InzidenzFallNeu:
+        return DataKind.cases_incidence_7d
     elif InzidenzTodesfallNeu:
         return DataKind.new_deaths_incidence
     elif InzidenzFallNeu:
@@ -372,14 +378,17 @@ def makeColumns(withGender=False, withAges=False):
         ('InzidenzFallNeu_7TageSumme', ['Publizierte Fälle je 100.000', 'letzte 7 Tage'], 'numeric', FormatFixed1, colWidth(defaultColWidth), Deletable, Selectable),
         ('InzidenzFallNeu_7TageSumme_7_Tage_davor', ['Publizierte Fälle je 100.000', 'vorl. 7 Tage'], 'numeric', FormatFixed1, colWidth(defaultColWidth), Deletable, Selectable),
         ('InzidenzFall', ['Publizierte Fälle je 100.000', 'total'], 'numeric', FormatFixed1, colWidth(60), Deletable, Selectable),
+        ('InzidenzFallNeu', ['Publizierte Fälle je 100.000', 'Neu'], 'numeric', FormatFixed1, colWidth(60), Deletable, Selectable),
         ('InzidenzFallNeu_Prognose_4_Wochen', ['Publizierte Fälle je 100.000', 'in 4 Wochen'], 'numeric', FormatFixed1, colWidth(60), Deletable, Selectable),
         ('InzidenzFallNeu_Prognose_8_Wochen', ['Publizierte Fälle je 100.000', 'in 8 Wochen'], 'numeric', FormatFixed1, colWidth(60), Deletable, Selectable),
         ('InzidenzFallNeu_Tage_bis_50', ['Publizierte Fälle je 100.000', 'Tage bis 50'], 'numeric', FormatInt, colWidth(60), Deletable, Selectable),
         ('InzidenzFallNeu_Tage_bis_100', ['Publizierte Fälle je 100.000', 'Tage bis 100'], 'numeric', FormatInt, colWidth(60), Deletable, Selectable),
 
+        ('MeldeTag_AnzahlFallNeu_Gestern', ['Fälle nach Meldedatum (RKI-Zählung)', 'neu'], 'numeric', FormatInt, colWidth(defaultColWidth), Deletable, Selectable),
         ('MeldeTag_AnzahlFallNeu_Gestern_7TageSumme', ['Fälle nach Meldedatum (RKI-Zählung)', 'letzte 7 Tage'], 'numeric', FormatInt, colWidth(defaultColWidth), Deletable, Selectable),
         ('MeldeTag_Vor7Tagen_AnzahlFallNeu_Vor8Tagen_7TageSumme', ['Fälle nach Meldedatum (RKI-Zählung)', 'vor 7 Tagen'], 'numeric', FormatInt, colWidth(defaultColWidth), Deletable, Selectable),
         ('MeldeTag_InzidenzFallNeu_Gestern_7TageSumme', ['Fälle nach Meldedatum (RKI-Zählung)', '7 Tage Inzidenz'], 'numeric', FormatFixed1, colWidth(defaultColWidth), Deletable, Selectable),
+        ('MeldeTag_InzidenzFallNeu_Gestern', ['Fälle nach Meldedatum (RKI-Zählung)', 'Neu je 100.000'], 'numeric', FormatFixed1, colWidth(defaultColWidth), Deletable, Selectable),
         ('MeldeTag_InzidenzFallNeu_Trend', ['Fälle nach Meldedatum (RKI-Zählung)', '7-Tage Faktor'], 'numeric', FormatFixed2, colWidth(70), Deletable, Selectable),
         ('MeldeTag_InzidenzFallNeu_R', ['Fälle nach Meldedatum (RKI-Zählung)', '7 Tage R-Wert'], 'numeric', FormatFixed2, colWidth(70), Deletable, Selectable),
         ('MeldeTag_InzidenzFallNeu_Prognose_4_Wochen', ['Fälle nach Meldedatum (RKI-Zählung)', 'Inzidenz in 4 Wochen'], 'numeric', FormatFixed1, colWidth(defaultColWidth), Deletable, Selectable),
@@ -394,32 +403,60 @@ def makeColumns(withGender=False, withAges=False):
         ('PublikationsdauerFallNeu_Median', ['Publikationsverzögerung (Tage)', 'Median x̃'], 'numeric', FormatInt, colWidth(62), Deletable, Selectable),
         ('PublikationsdauerFallNeu_StdAbw', ['Publikationsverzögerung (Tage)', 'Stdabw. σx'], 'numeric', FormatFixed1, colWidth(62), Deletable, Selectable),
         ('PublikationsdauerFallNeu_Fallbasis', ['Publikationsverzögerung (Tage)', 'Anzahl Fälle'], 'numeric', FormatInt, colWidth(62), Deletable, Selectable),
+
+        ('AnzahlTodesfallNeu', ['Todesfälle', 'Neu'], 'numeric', FormatInt, colWidth(defaultColWidth), Deletable, Selectable),
         ('AnzahlTodesfallNeu_7TageSumme', ['Todesfälle', 'letzte 7 Tage'], 'numeric', FormatInt, colWidth(defaultColWidth), Deletable, Selectable),
         ('AnzahlTodesfallNeu_7TageSumme_7_Tage_davor', ['Todesfälle', 'vorl. 7 Tage'], 'numeric', FormatInt, colWidth(defaultColWidth), Deletable, Selectable),
         ('AnzahlTodesfall', ['Todesfälle', 'total'], 'numeric', FormatInt, colWidth(defaultColWidth), Deletable, Selectable),
         ('Fallsterblichkeit_Prozent', ['Todesfälle', 'CFR in %'], 'numeric', FormatFixed2, colWidth(62), Deletable, Selectable),
+
+        ('InzidenzTodesfallNeu', ['Todesfälle je 100.000', 'Neu'], 'numeric', FormatFixed2, colWidth(defaultColWidth), Deletable, Selectable),
         ('InzidenzTodesfallNeu_7TageSumme', ['Todesfälle je 100.000', 'letzte 7 Tage'], 'numeric', FormatFixed2, colWidth(defaultColWidth), Deletable, Selectable),
         ('InzidenzTodesfallNeu_7TageSumme_7_Tage_davor', ['Todesfälle je 100.000', 'vorl. 7 Tage'], 'numeric', FormatFixed2, colWidth(defaultColWidth), Deletable, Selectable),
         ('InzidenzTodesfallNeu_7TageSumme_Trend', ['Todesfälle je 100.000', 'Trend'], 'numeric', FormatFixed2, colWidth(defaultColWidth), Deletable, Selectable),
         ('InzidenzTodesfall', ['Todesfälle je 100.000', 'total'], 'numeric', FormatFixed2, colWidth(62), Deletable, Selectable),
+
+        ('MeldeTag_AnzahlTodesfallNeu', ['Todesfälle nach Meldetag', 'Neu'], 'numeric', FormatInt, colWidth(defaultColWidth), Deletable, Selectable),
+        ('MeldeTag_InzidenzTodesfallNeu', ['Todesfälle nach Meldetag', 'Neu pro 100.000'], 'numeric', FormatFixed2, colWidth(62), Deletable,Selectable),
+        ('MeldeTag_InzidenzTodesfallNeu_7TageSumme', ['Todesfälle nach Meldetag', 'letzte 7 Tage pro 100.000'], 'numeric', FormatFixed2, colWidth(defaultColWidth), Deletable, Selectable),
+        ('MeldeTag_Vor7Tagen_InzidenzTodesfallNeu_7TageSumme', ['Todesfälle nach Meldetag', 'vor 7 Tagen Summe 7 Tage pro 100.000'],
+         'numeric', FormatFixed2, colWidth(defaultColWidth), Deletable, Selectable),
     ]
 
     if withAges:
         desiredOrder = desiredOrder + makeAgesColumns('Einwohner{AG}',
                                                       'Einwohner nach Alter',
                                                       FormatInt, colWidth(90))
+        desiredOrder = desiredOrder + makeAgesColumns('InzidenzFallNeu{AG}',
+                                                      'Fälle je 100.000 nach Alter Neu',
+                                                      FormatFixed2, colWidth(62))
         desiredOrder = desiredOrder + makeAgesColumns('InzidenzFallNeu{AG}_7TageSumme',
                                                       'Fälle je 100.000 nach Alter in letzten 7 Tagen publiziert',
+                                                      FormatFixed2, colWidth(62))
+        desiredOrder = desiredOrder + makeAgesColumns('MeldeTag_InzidenzFallNeu{AG}_7TageSumme',
+                                                      'Fälle je 100.000 nach Alter in letzten 7 Tagen gemeldet',
                                                       FormatFixed2, colWidth(62))
         desiredOrder = desiredOrder + makeAgesColumns('AnzahlFall{AG}',
                                                       'Fälle nach Alter kumuliert',
                                                       FormatInt, colWidth(62))
+        desiredOrder = desiredOrder + makeAgesColumns('AnzahlFallNeu{AG}',
+                                                      'Fälle nach Alter Neu',
+                                                      FormatInt, colWidth(62))
         desiredOrder = desiredOrder + makeAgesColumns('InzidenzFall{AG}',
                                                   'Fälle je 100.000 nach Alter kumuliert',
                                                   FormatFixed2, colWidth(62))
+        desiredOrder = desiredOrder + makeAgesColumns('InzidenzFallNeu{AG}_7TageSumme_Trend',
+                                                      'Fallinzidenz Trend nach Altergruppen',
+                                                      FormatFixed2, colWidth(62))
+        desiredOrder = desiredOrder + makeAgesColumns('AnzahlFallNeu{AG}_7TageSumme_R_Spezial',
+                                                      '7-Tage R-Spezial nach Altergruppen',
+                                                      FormatFixed2, colWidth(62))
 
         desiredOrder = desiredOrder + makeAgesColumns('InzidenzTodesfallNeu{AG}_7TageSumme',
                                                       'Todesfälle je 100.000 nach Alter in letzten 7 Tagen publiziert',
+                                                      FormatFixed2, colWidth(62))
+        desiredOrder = desiredOrder + makeAgesColumns('MeldeTag_InzidenzTodesfallNeu{AG}_7TageSumme',
+                                                      'Todesfälle je 100.000 nach Alter in letzten 7 Tagen (nach Meldetag)',
                                                       FormatFixed2, colWidth(62))
         desiredOrder = desiredOrder + makeAgesColumns('MeldeTag_AnzahlTodesfall{AG}',
                                                       'Todesfälle nach Alter kumuliert (nach Meldetag)',
@@ -427,13 +464,13 @@ def makeColumns(withGender=False, withAges=False):
         desiredOrder = desiredOrder + makeAgesColumns('InzidenzTodesfall{AG}',
                                                      'Todesfälle je 100.000 nach Alter kumuliert',
                                                   FormatFixed2, colWidth(62))
+        desiredOrder = desiredOrder + makeAgesColumns('InzidenzTodesfallNeu{AG}_7TageSumme_Trend',
+                                                      'InzidenzTodesfall Trend nach Altergruppen',
+                                                      FormatFixed2, colWidth(62))
 
         desiredOrder = desiredOrder + makeAgesColumns('MeldeTag_Fallsterblichkeit_ProzentNeu{AG}_7TageSumme',
                                                       'Fallsterblichkeit in Prozent nach Altergruppen',
                                                       FormatFixed3, colWidth(62))
-        desiredOrder = desiredOrder + makeAgesColumns('InzidenzTodesfallNeu{AG}_7TageSumme_Trend',
-                                              'Fallsterblichkeit Trend nach Altergruppen',
-                                              FormatFixed2, colWidth(62))
 
 
     orderedCols, orderedNames, orderedTypes, orderFormats, orderWidths, orderDeletable, orderSelectable = zip(*desiredOrder)
@@ -1362,7 +1399,7 @@ def display_time_series(selected_columns,selected_rows, fig_width, fig_height):
         fig.layout.height = int(fig_height)
         fig.layout.width = int(fig_width)
         legendMargin=500
-        fig.layout.margin.t = 0
+        fig.layout.margin.t = 20
         # fig.layout.margin.l = 0
         # fig.layout.margin.b = 0
         fig.layout.margin.r = legendMargin # right margin for Legend
@@ -1534,10 +1571,33 @@ def adjustSliderHeight(fig_height):
 #     Input('fig-height-slider', 'value'),
 # )
 
-h_width_slider =  dcc.Slider(id='fig-width-slider', min=1000, max=3000, step=10, value=1200,
+@app.callback(
+    Output("download", "data"),
+    Input("btn", "n_clicks"),
+    State('table', 'selected_columns'),
+    State('table', 'selected_rows'),
+)
+def triggerDownLoad(n_clicks,selected_columns,selected_rows):
+    print("triggerDownLoad: n_clicks,selected_columns,selected_rows",n_clicks,selected_columns,selected_rows)
+    if not (selected_columns is None or selected_rows is None):
+
+        regionNames = table[selected_rows, "Landkreis"].to_list()[0]
+        regionIDs = table[selected_rows, "IdLandkreis"].to_list()[0]
+
+        exportTable = dt.Frame()
+        for i, regionid in enumerate(regionIDs):
+            regionTable = getTimeSeries(fullTable, regionid, ["DatenstandTag", "Datum", "Landkreis", "IdLandkreis","Bundesland"] + selected_columns)
+            exportTable.rbind(regionTable)
+
+        #print("exportTable",exportTable)
+        result = exportTable.to_csv()
+        return dict(content=result, filename="graph-data.csv")
+    return None
+
+h_width_slider =  dcc.Slider(id='fig-width-slider', min=1000, max=3000, step=10, value=2000,
                marks={x: str(x) for x in [1000, 1200, 1400, 1800, 2000, 2200, 2400, 2600, 2800, 3000]})
 
-h_height_slider =  dcc.Slider(id='fig-height-slider', min=500, max=2000, step=10, value=500, vertical=True,verticalHeight=500,
+h_height_slider =  dcc.Slider(id='fig-height-slider', min=500, max=2000, step=10, value=900, vertical=True,verticalHeight=900,
                marks={x: str(x) for x in [500, 600, 700, 800, 1000, 1200, 1400, 1600, 1800, 2000]})
 
 h_graph = html.Table([
@@ -1547,7 +1607,7 @@ h_graph = html.Table([
                     dcc.Graph(
                         id='time-series-chart',
                         #figure=px.line(chartDataFrame, x='Datum', y="AnzahlFallNeu_7TageSumme"),
-                        figure={"layout": {"width": 1000}},
+                        figure={"layout": {"width": 2000}},
                         config={
                             "showAxisDragHandles": True,
                             "showAxisRangeEntryBoxes" : True,
@@ -1557,6 +1617,7 @@ h_graph = html.Table([
                     )
                 ),
             ]),
+            html.Tr([html.Td([html.Div("X")]),html.Div([html.Button("Download .csv", id="btn"), Download(id="download")])]),
             html.Tr([html.Td([html.Div("X")]),html.Td(html.Div([h_width_slider]))]),
 ])
 
